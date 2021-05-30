@@ -5,10 +5,11 @@ import datetime
 import time
 from collections import defaultdict
 from . import mask as maskUtils
+from .coco import Dbg, COCO
 import copy
 
 
-class COCOeval:
+class COCOeval(Dbg):
     # Interface for evaluating detection on the Microsoft COCO dataset.
     #
     # The usage for CocoEval is as follows:
@@ -58,15 +59,18 @@ class COCOeval:
     # Data, paper, and tutorials available at:  http://mscoco.org/
     # Code written by Piotr Dollar and Tsung-Yi Lin, 2015.
     # Licensed under the Simplified BSD License [see coco/license.txt]
-    def __init__(self, cocoGt=None, cocoDt=None, iouType="segm"):
+    def __init__(
+        self, cocoGt: COCO = None, cocoDt=None, iouType="segm", debug: int = 1
+    ):
         """
         Initialize CocoEval using coco APIs for gt and dt
         :param cocoGt: coco object with ground truth annotations
         :param cocoDt: coco object with detection results
         :return: None
         """
-        if not iouType:
-            print("iouType not specified. use default iouType segm")
+        self.debug = debug
+        if not iouType and debug >= 1:
+            self._print("iouType not specified. use default iouType segm")
         self.cocoGt = cocoGt  # ground truth COCO API
         self.cocoDt = cocoDt  # detections COCO API
         self.evalImgs = defaultdict(
@@ -79,7 +83,7 @@ class COCOeval:
         self._paramsEval = {}  # parameters for evaluation
         self.stats = []  # result summarization
         self.ious = {}  # ious between all gts and dts
-        if not cocoGt is None:
+        if cocoGt is not None:
             self.params.imgIds = sorted(cocoGt.getImgIds())
             self.params.catIds = sorted(cocoGt.getCatIds())
 
@@ -132,7 +136,8 @@ class COCOeval:
         :return: None
         """
         tic = time.time()
-        print("Running per image evaluation...")
+
+        self._print("Running per image evaluation...")
         p = self.params
         # add backward compatibility if useSegm is specified in params
         if not p.useSegm is None:
@@ -142,7 +147,7 @@ class COCOeval:
                     p.iouType
                 )
             )
-        print("Evaluate annotation type *{}*".format(p.iouType))
+        self._print("Evaluate annotation type *{}*".format(p.iouType))
         p.imgIds = list(np.unique(p.imgIds))
         if p.useCats:
             p.catIds = list(np.unique(p.catIds))
@@ -173,7 +178,7 @@ class COCOeval:
         ]
         self._paramsEval = copy.deepcopy(self.params)
         toc = time.time()
-        print("DONE (t={:0.2f}s).".format(toc - tic))
+        self._print("DONE (t={:0.2f}s).".format(toc - tic))
 
     def computeIoU(self, imgId, catId):
         p = self.params
@@ -344,10 +349,12 @@ class COCOeval:
         :param p: input params for evaluation
         :return: None
         """
-        print("Accumulating evaluation results...")
+        self._print("Accumulating evaluation results...")
         tic = time.time()
         if not self.evalImgs:
             print("Please run evaluate() first")
+            return
+
         # allows input customized parameters
         if p is None:
             p = self.params
@@ -386,7 +393,7 @@ class COCOeval:
                 Na = a0 * I0
                 for m, maxDet in enumerate(m_list):
                     E = [self.evalImgs[Nk + Na + i] for i in i_list]
-                    E = [e for e in E if not e is None]
+                    E = [e for e in E if e is not None]
                     if len(E) == 0:
                         continue
                     dtScores = np.concatenate([e["dtScores"][0:maxDet] for e in E])
@@ -439,7 +446,7 @@ class COCOeval:
                             for ri, pi in enumerate(inds):
                                 q[ri] = pr[pi]
                                 ss[ri] = dtScoresSorted[pi]
-                        except:
+                        except IndexError:
                             pass
                         precision[t, :, k, a, m] = np.array(q)
                         scores[t, :, k, a, m] = np.array(ss)
@@ -452,7 +459,7 @@ class COCOeval:
             "scores": scores,
         }
         toc = time.time()
-        print("DONE (t={:0.2f}s).".format(toc - tic))
+        self._print("DONE (t={:0.2f}s).".format(toc - tic))
 
     def summarize(self):
         """

@@ -68,31 +68,44 @@ def _isArrayLike(obj):
     return hasattr(obj, "__iter__") and hasattr(obj, "__len__")
 
 
-class COCO:
-    def __init__(self, annotation_file=None):
+class Dbg:
+    debug = 1
+
+    def _print(self, *args, **kwargs):
+        if self.debug >= 1:
+            print(*args, **kwargs)
+
+    def _debug(self, *args, **kwargs):
+        if self.debug >= 2:
+            print(*args, **kwargs)
+
+
+class COCO(Dbg):
+    def __init__(self, annotation_file=None, debug=1):
         """
         Constructor of Microsoft COCO helper class for reading and visualizing annotations.
         :param annotation_file (str): location of annotation file
         :param image_folder (str): location to the folder that hosts images.
         :return:
         """
+        self.debug = debug
         # load dataset
         self.dataset, self.anns, self.cats, self.imgs = dict(), dict(), dict(), dict()
         self.imgToAnns, self.catToImgs = defaultdict(list), defaultdict(list)
-        if not annotation_file == None:
-            print("loading annotations into memory...")
+        if annotation_file is not None:
+            self._print("loading annotations into memory...")
             tic = time.time()
             dataset = json.load(open(annotation_file, "r"))
             assert (
                 type(dataset) == dict
             ), "annotation file format {} not supported".format(type(dataset))
-            print("Done (t={:0.2f}s)".format(time.time() - tic))
+            self._print("Done (t={:0.2f}s)".format(time.time() - tic))
             self.dataset = dataset
             self.createIndex()
 
     def createIndex(self):
         # create index
-        print("creating index...")
+        self._print("creating index...")
         anns, cats, imgs = {}, {}, {}
         imgToAnns, catToImgs = defaultdict(list), defaultdict(list)
         if "annotations" in self.dataset:
