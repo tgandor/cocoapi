@@ -1,5 +1,5 @@
 __author__ = "tylin"
-__version__ = "2.0"
+__version__ = "2.0.2"
 # Interface for accessing the Microsoft COCO dataset.
 
 # Microsoft COCO is a large image dataset designed for object detection,
@@ -52,16 +52,10 @@ from matplotlib.patches import Polygon
 import numpy as np
 import copy
 import itertools
-from . import mask as maskUtils
 import os
 from collections import defaultdict
-import sys
-
-PYTHON_VERSION = sys.version_info[0]
-if PYTHON_VERSION == 2:
-    from urllib import urlretrieve
-elif PYTHON_VERSION == 3:
-    from urllib.request import urlretrieve
+from urllib.request import urlretrieve
+from . import mask as maskUtils
 
 
 def _isArrayLike(obj):
@@ -125,7 +119,7 @@ class COCO(Dbg):
             for ann in self.dataset["annotations"]:
                 catToImgs[ann["category_id"]].append(ann["image_id"])
 
-        print("index created!")
+        self._print("index created!")
 
         # create class members
         self.anns = anns
@@ -178,7 +172,7 @@ class COCO(Dbg):
                     if ann["area"] > areaRng[0] and ann["area"] < areaRng[1]
                 ]
             )
-        if not iscrowd == None:
+        if iscrowd is not None:
             ids = [ann["id"] for ann in anns if ann["iscrowd"] == iscrowd]
         else:
             ids = [ann["id"] for ann in anns]
@@ -375,12 +369,12 @@ class COCO(Dbg):
         :param   resFile (str)     : file name of result file
         :return: res (obj)         : result api object
         """
-        res = COCO()
+        res = COCO(debug=self.debug)
         res.dataset["images"] = [img for img in self.dataset["images"]]
 
-        print("Loading and preparing results...")
+        self._print("Loading and preparing results...")
         tic = time.time()
-        if type(resFile) == str or (PYTHON_VERSION == 2 and type(resFile) == unicode):
+        if type(resFile) == str:
             anns = json.load(open(resFile))
         elif type(resFile) == np.ndarray:
             anns = self.loadNumpyAnnotations(resFile)
@@ -405,7 +399,7 @@ class COCO(Dbg):
             for id, ann in enumerate(anns):
                 bb = ann["bbox"]
                 x1, x2, y1, y2 = [bb[0], bb[0] + bb[2], bb[1], bb[1] + bb[3]]
-                if not "segmentation" in ann:
+                if "segmentation" not in ann:
                     ann["segmentation"] = [[x1, y1, x1, y2, x2, y2, x2, y1]]
                 ann["area"] = bb[2] * bb[3]
                 ann["id"] = id + 1
@@ -415,7 +409,7 @@ class COCO(Dbg):
             for id, ann in enumerate(anns):
                 # now only support compressed RLE format as segmentation results
                 ann["area"] = maskUtils.area(ann["segmentation"])
-                if not "bbox" in ann:
+                if "bbox" not in ann:
                     ann["bbox"] = maskUtils.toBbox(ann["segmentation"])
                 ann["id"] = id + 1
                 ann["iscrowd"] = 0
@@ -429,7 +423,7 @@ class COCO(Dbg):
                 ann["area"] = (x1 - x0) * (y1 - y0)
                 ann["id"] = id + 1
                 ann["bbox"] = [x0, y0, x1 - x0, y1 - y0]
-        print("DONE (t={:0.2f}s)".format(time.time() - tic))
+        self._print("DONE (t={:0.2f}s)".format(time.time() - tic))
 
         res.dataset["annotations"] = anns
         res.createIndex()
